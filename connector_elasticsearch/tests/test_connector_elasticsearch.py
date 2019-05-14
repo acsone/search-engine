@@ -4,12 +4,12 @@
 import json
 from time import sleep
 
-from odoo import exceptions
-from odoo.addons.connector_search_engine.tests.models import SeBackendFake
-from odoo.addons.connector_search_engine.tests.test_all import (
+from openerp import exceptions
+from openerp.addons.connector_search_engine.tests.models import SeBackendFake
+from openerp.addons.connector_search_engine.tests.test_all import (
     TestBindingIndexBase,
 )
-from odoo.exceptions import ValidationError
+from openerp.exceptions import ValidationError
 from vcr_unittest import VCRMixin
 
 

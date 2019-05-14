@@ -2,13 +2,13 @@
 # Copyright 2013 Akretion (http://www.akretion.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import _, api, fields, models
+from openerp import _, api, fields, models
 
 
 class SeBackendSpecAbstract(models.AbstractModel):
     _name = "se.backend.spec.abstract"
     _description = "Se Specialized Backend"
-    _inherit = "connector.backend"
+    _inherit = ["connector.backend", "collection.base"]
 
     # This field may be removed in next  version, check comment in se.backend
     # file

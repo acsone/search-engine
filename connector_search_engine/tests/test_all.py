@@ -3,7 +3,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import mock
-from odoo import exceptions
+from openerp import exceptions
 
 from .common import TestSeBackendCaseBase
 from .models import (

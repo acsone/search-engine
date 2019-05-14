@@ -6,12 +6,12 @@ import logging
 
 import mock
 import urlparse
-from odoo import tools
-from odoo.addons.component.tests.common import SavepointComponentCase
-from odoo.modules.module import get_resource_path
+from openerp import tools
+from openerp.addons.component.tests.common import SavepointComponentCase
+from openerp.modules.module import get_resource_path
 
 # mute `test_queue_job_no_delay` logging
-logging.getLogger("odoo.addons.queue_job.models.base").setLevel("CRITICAL")
+logging.getLogger("openerp.addons.queue_job.models.base").setLevel("CRITICAL")
 
 
 def load_xml(env, module, filepath):

@@ -5,7 +5,7 @@
 
 {
     "name": "Connector Search Engine",
-    "version": "10.0.2.0.0",
+    "version": "9.0.2.0.0",
     "author": "Akretion,"
     "ACSONE SA/NV,"
     "Camptocamp,"
@@ -13,7 +13,7 @@
     "website": "https://github.com/OCA/search-engine",
     "license": "AGPL-3",
     "category": "Generic Modules",
-    "depends": ["connector", "base_jsonify"],
+    "depends": ["connector", "base_jsonify", "component"],
     "external_dependencies": {"python": ["unidecode"]},
     "data": [
         "views/se_backend.xml",

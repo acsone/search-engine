@@ -4,8 +4,8 @@
 
 import logging
 
-from odoo import _, api, fields, models
-from odoo.addons.queue_job.job import job
+from openerp import _, api, fields, models
+from openerp.addons.queue_job.job import job
 
 _logger = logging.getLogger(__name__)
 try:
