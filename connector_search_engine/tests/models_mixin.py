@@ -3,6 +3,8 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import mock
+from openerp import SUPERUSER_ID
+from openerp.modules.registry import RegistryManager
 
 
 class TestMixin(object):
@@ -43,12 +45,17 @@ class TestMixin(object):
     def _test_setup_model(cls, env):
         """Initialize it."""
         with mock.patch.object(env.cr, "commit"):
-            cls._build_model(env.registry, env.cr)
+            inst = cls._build_model(env.registry, env.cr)
+            cr = env.cr
             env.registry.setup_models(env.cr)
             ctx = dict(env.context, update_custom_fields=True)
-            if cls._test_setup_gen_xid:
-                ctx["module"] = cls._module
-            env.registry.init_models(env.cr, [cls._name], ctx)
+            inst._prepare_setup(cr, SUPERUSER_ID)
+            inst._setup_base(cr, SUPERUSER_ID, partial=False)
+            inst._setup_fields(cr, SUPERUSER_ID, partial=False)
+            inst._setup_complete(cr, SUPERUSER_ID)
+            ctx["module"] = cls._module
+            inst._auto_init(cr, ctx)
+            return inst
 
     @classmethod
     def _test_teardown_model(cls, env):
@@ -61,6 +68,7 @@ class TestMixin(object):
 
         if not getattr(cls, "_test_teardown_no_delete", False):
             del env.registry.models[cls._name]
+            RegistryManager.signal_registry_change(env.cr.dbname)
 
     def _test_get_model_id(self):
         self.env.cr.execute(

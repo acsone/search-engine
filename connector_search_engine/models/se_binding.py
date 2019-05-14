@@ -2,9 +2,10 @@
 # Copyright 2013 Akretion (http://www.akretion.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import _, api, fields, models
-from odoo.addons.queue_job.job import job
-from odoo.exceptions import UserError
+from openerp import _, api, fields, models
+from openerp.addons.connector.queue.job import job
+from openerp.addons.connector.session import ConnectorSession
+from openerp.exceptions import UserError
 
 
 class SeBinding(models.AbstractModel):
@@ -86,9 +87,14 @@ class SeBinding(models.AbstractModel):
         description = _(
             "Recompute %s json and check if need update" % self._name
         )
+        session = ConnectorSession.from_env(self.env)
         for record in self:
-            record.with_delay(description=description).recompute_json(
-                force_export=force_export
+            se_binding_do_recompute_json.delay(
+                session,
+                record._name,
+                record.id,
+                force_export,
+                description=description,
             )
 
     def _work_by_index(self, active=True):
@@ -108,7 +114,6 @@ class SeBinding(models.AbstractModel):
                     yield work
 
     # TODO maybe we need to add lock (todo check)
-    @job(default_channel="root.search_engine.recompute_json")
     def recompute_json(self, force_export=False):
         for work in self._work_by_index():
             mapper = work.component(usage="se.export.mapper")
@@ -121,7 +126,6 @@ class SeBinding(models.AbstractModel):
                         vals["sync_state"] = "to_update"
                     record.write(vals)
 
-    @job(default_channel="root.search_engine")
     @api.multi
     def synchronize(self):
         # We volontary to the export and delete in the same transaction
@@ -147,3 +151,22 @@ class SeBinding(models.AbstractModel):
         return "Exported ids : {}\nDeleted ids : {}".format(
             export_ids, delete_ids
         )
+
+    @api.multi
+    def _jobify_synchronize(self, description=None):
+        session = ConnectorSession.from_env(self.env)
+        se_binding_do_synchronize.delay(
+            session, self._name, self.ids, description=description
+        )
+
+
+@job(default_channel="root.search_engine")
+def se_binding_do_synchronize(session, model_name, binding_ids):
+    session.env[model_name].browse(binding_ids).synchronize()
+
+
+@job(default_channel="root.search_engine.recompute_json")
+def se_binding_do_recompute_json(
+    session, model_name, binding_ids, force_export
+):
+    session.env[model_name].browse(binding_ids).recompute_json(force_export)

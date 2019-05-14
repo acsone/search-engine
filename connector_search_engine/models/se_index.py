@@ -4,8 +4,9 @@
 
 import logging
 
-from odoo import _, api, fields, models
-from odoo.addons.queue_job.job import job
+from openerp import _, api, fields, models
+from openerp.addons.connector.queue.job import job
+from openerp.addons.connector.session import ConnectorSession
 
 _logger = logging.getLogger(__name__)
 try:
@@ -29,7 +30,7 @@ class SeIndex(models.Model):
     def _get_model_domain(self):
         se_model_names = []
         for model in self.env:
-            if self.env[model]._abstract or self.env[model]._transient:
+            if not self.env[model]._auto or self.env[model]._transient:
                 continue
             if hasattr(self.env[model], "_se_model"):
                 se_model_names.append(model)
@@ -100,7 +101,10 @@ class SeIndex(models.Model):
     def _jobify_batch_export(self):
         self.ensure_one()
         description = _("Prepare a batch export of index '%s'") % self.name
-        self.with_delay(description=description).batch_export()
+        session = ConnectorSession.from_env(self.env)
+        se_index_do_batch_export.delay(
+            session, self._name, self.id, description=description
+        )
 
     @api.model
     def generate_batch_export_per_index(self, domain=None):
@@ -113,7 +117,6 @@ class SeIndex(models.Model):
     def _get_domain_for_exporting_binding(self):
         return [("index_id", "=", self.id), ("sync_state", "=", "to_update")]
 
-    @job(default_channel="root.search_engine.prepare_batch_export")
     def batch_export(self):
         self.ensure_one()
         domain = self._get_domain_for_exporting_binding()
@@ -128,7 +131,7 @@ class SeIndex(models.Model):
                 bindings_count,
                 self.name,
             )
-            processing.with_delay(description=description).synchronize()
+            processing._jobify_synchronize(description=description)
             processing.with_context(connector_no_export=True).write(
                 {"sync_state": "scheduled"}
             )
@@ -161,12 +164,29 @@ class SeIndex(models.Model):
                     )
                     if not binding:
                         item_ids.append(se_binding[adapter._record_id_key])
-                index.with_delay().delete_obsolete_item(item_ids)
+                index._jobify_delete_obsolete_item(item_ids)
 
-    @job(default_channel="root.search_engine")
+    @api.multi
+    def _jobify_delete_obsolete_item(self, item_ids):
+        self.ensure_one()
+        session = ConnectorSession.from_env(self.env)
+        se_index_do_delete_obsolete_item.delay(
+            session, self._name, self.id, item_ids
+        )
+
     @api.multi
     def delete_obsolete_item(self, item_ids):
         backend = self.backend_id.specific_backend
         with backend.work_on(self._name, index=self) as work:
             adapter = work.component(usage="se.backend.adapter")
             adapter.delete(item_ids)
+
+
+@job(default_channel="root.search_engine")
+def se_index_do_delete_obsolete_item(session, mode_name, index_id, item_ids):
+    session.env[mode_name].browse(index_id).delete_obsolete_item(item_ids)
+
+
+@job(default_channel="root.search_engine.prepare_batch_export")
+def se_index_do_batch_export(session, model_name, index_id):
+    session.env[model_name].browse(index_id).batch_export()

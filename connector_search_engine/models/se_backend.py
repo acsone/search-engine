@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 # Copyright 2013 Akretion (http://www.akretion.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import api, fields, models, tools
+from openerp import api, fields, models, tools
 
 
 class SeBackend(models.Model):
@@ -11,13 +10,8 @@ class SeBackend(models.Model):
     _description = "Se Backend"
     _inherit = "connector.backend"
 
-    # We can't leave this field required in database, because of strange
-    # behaviors with name field defined already on connector.backend, which is
-    # inherited by both se.backend and se.backend.spec.abstract.
-    # In next version, the field is removed from connector.backend, so we
-    # do not have this issue. Also a related field have been added on
-    # se.backend.spec.abstract, this field is also removed in next version
     name = fields.Char(required=False)
+    version = fields.Selection(required=False)
     specific_model = fields.Selection(
         string="Type",
         selection="_select_specific_model",
@@ -42,7 +36,7 @@ class SeBackend(models.Model):
         """
         models = self.env["ir.model"].search(
             [
-                ("model", "like", "se.backend.%"),
+                ("model", "=like", "se.backend.%"),
                 ("model", "!=", "se.backend.spec.abstract"),
             ]
         )

@@ -3,9 +3,9 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import mock
-from odoo import exceptions
+from openerp import exceptions
 
-from .common import TestSeBackendCaseBase
+from .common import TestSeBackendCaseBase, mock_job_delays
 from .models import (
     BindingResPartnerFake,
     ResPartnerFake,
@@ -47,28 +47,32 @@ class TestBindingIndexBase(TestSeBackendCaseBase):
     @classmethod
     def setup_records(cls, backend=None):
         backend = backend or cls.backend
-        # create an index for partner model
-        cls.se_index = cls.se_index_model.create(
-            cls._prepare_index_values(backend)
-        )
-        # create a binding + partner alltogether
-        cls.binding_model = cls.env[BindingResPartnerFake._name]
-        cls.partner_binding = cls.binding_model.create(
-            {
-                "name": "Marty McFly",
-                "country_id": cls.env.ref("base.us").id,
-                "email": "marty.mcfly@future.com",
-                "child_ids": [
-                    (
-                        0,
-                        0,
-                        {"name": "Doc Brown", "email": "docbrown@future.com"},
-                    )
-                ],
-                "index_id": cls.se_index.id,
-            }
-        )
-        cls.partner = cls.partner_binding.record_id
+        with mock_job_delays():
+            # create an index for partner model
+            cls.se_index = cls.se_index_model.create(
+                cls._prepare_index_values(backend)
+            )
+            # create a binding + partner alltogether
+            cls.binding_model = cls.env[BindingResPartnerFake._name]
+            cls.partner_binding = cls.binding_model.create(
+                {
+                    "name": "Marty McFly",
+                    "country_id": cls.env.ref("base.us").id,
+                    "email": "marty.mcfly@future.com",
+                    "child_ids": [
+                        (
+                            0,
+                            0,
+                            {
+                                "name": "Doc Brown",
+                                "email": "docbrown@future.com",
+                            },
+                        )
+                    ],
+                    "index_id": cls.se_index.id,
+                }
+            )
+            cls.partner = cls.partner_binding.record_id
 
 
 class TestBindingIndexBaseFake(TestBindingIndexBase):
@@ -147,7 +151,7 @@ class TestBindingIndex(TestBindingIndexBaseFake):
         expected = {
             "id": self.partner_binding.id,
             "active": True,
-            "lang": "en_US",
+            "lang": self.partner_binding.lang or None,
             "name": "Marty McFly",
             "credit_limit": 0.0,
             "country_id": {"code": "US", "name": "United States"},

@@ -6,8 +6,8 @@ import json
 import os
 from time import sleep
 
-from odoo import exceptions
-from odoo.addons.connector_search_engine.tests.test_all import (
+from openerp import exceptions
+from openerp.addons.connector_search_engine.tests.test_all import (
     TestBindingIndexBase,
 )
 from vcr_unittest import VCRMixin
