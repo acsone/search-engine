@@ -2,16 +2,14 @@
 # Copyright 2018 Simone Orsi - Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
-import logging
+from contextlib import contextmanager
 
 import mock
 import urlparse
 from openerp import tools
 from openerp.addons.component.tests.common import SavepointComponentCase
+from openerp.addons.connector.tests.common import mock_job_delay_to_direct
 from openerp.modules.module import get_resource_path
-
-# mute `test_queue_job_no_delay` logging
-logging.getLogger("openerp.addons.queue_job.models.base").setLevel("CRITICAL")
 
 
 def load_xml(env, module, filepath):
@@ -25,6 +23,24 @@ def load_xml(env, module, filepath):
             noupdate=False,
             kind="test",
         )
+
+
+@contextmanager
+def mock_job_delays():
+    with mock_job_delay_to_direct(
+        "openerp.addons.connector_search_engine.models."
+        "se_binding.se_binding_do_synchronize"
+    ), mock_job_delay_to_direct(
+        "openerp.addons.connector_search_engine.models."
+        "se_binding.se_binding_do_recompute_json"
+    ), mock_job_delay_to_direct(
+        "openerp.addons.connector_search_engine.models."
+        "se_index.se_index_do_delete_obsolete_item"
+    ), mock_job_delay_to_direct(
+        "openerp.addons.connector_search_engine.models."
+        "se_index.se_index_do_batch_export"
+    ):
+        yield
 
 
 class TestSeBackendCaseBase(SavepointComponentCase):
@@ -48,3 +64,7 @@ class TestSeBackendCaseBase(SavepointComponentCase):
     @staticmethod
     def parse_path(url):
         return urlparse.urlparse(url).path
+
+    def run(self, *args, **kwargs):
+        with mock_job_delays():
+            return super(TestSeBackendCaseBase, self).run(*args, **kwargs)

@@ -10,7 +10,8 @@ class SeBackend(models.Model):
     _description = "Se Backend"
     _inherit = ["connector.backend", "collection.base"]
 
-    name = fields.Char(required=True)
+    name = fields.Char(required=False)
+    version = fields.Selection(required=False)
     specific_model = fields.Selection(
         string="Type",
         selection="_select_specific_model",
@@ -35,7 +36,7 @@ class SeBackend(models.Model):
         """
         models = self.env["ir.model"].search(
             [
-                ("model", "like", "se.backend.%"),
+                ("model", "=like", "se.backend.%"),
                 ("model", "!=", "se.backend.spec.abstract"),
             ]
         )
