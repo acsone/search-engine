@@ -5,7 +5,7 @@
 
 {
     "name": "Connector Search Engine",
-    "version": "9.0.2.0.0",
+    "version": "9.0.2.0.1",
     "author": "Akretion,"
     "ACSONE SA/NV,"
     "Camptocamp,"
@@ -14,7 +14,7 @@
     "license": "AGPL-3",
     "category": "Generic Modules",
     "depends": ["connector", "base_jsonify", "component"],
-    "external_dependencies": {"python": ["unidecode"]},
+    "external_dependencies": {"python": ["unidecode", "openupgradelib"]},
     "data": [
         "views/se_backend.xml",
         "views/se_menu.xml",
