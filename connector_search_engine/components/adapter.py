@@ -30,3 +30,6 @@ class SeAdapter(AbstractComponent):
 
     def settings(self, force=False):
         return NotImplemented  # pragma: no cover
+
+    def external_id(self, record):
+        return record[self._record_id_key]
