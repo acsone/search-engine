@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 # Copyright 2013 Akretion (http://www.akretion.com)
+# @author Sébestien Beau <sebastien.beau@akretion.com>
+# Copyright 2020 Camptomcap (http://www.camptomcamp.com)
+# @author Simone Orsi <simahawk@gmail.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 
 
 class SeBackendSpecAbstract(models.AbstractModel):
@@ -15,6 +18,8 @@ class SeBackendSpecAbstract(models.AbstractModel):
     # This can be used by other modules to understand
     # which engine they are dealing with
     _search_engine_name = ""
+    # Unique index record key
+    _record_id_key = None
 
     # Delegation inheritance
     se_backend_id = fields.Many2one(

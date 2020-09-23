@@ -2,10 +2,13 @@
 # Copyright 2013 Akretion (http://www.akretion.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
+import logging
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 from odoo.addons.queue_job.job import job
+
+_logger = logging.getLogger(__name__)
 
 
 class SeBinding(models.AbstractModel):
@@ -29,6 +32,7 @@ class SeBinding(models.AbstractModel):
             ("to_update", "To update"),
             ("scheduled", "Scheduled"),
             ("done", "Done"),
+            ("to_be_checked", "To be checked"),
         ],
         default="new",
         readonly=True,
@@ -109,16 +113,50 @@ class SeBinding(models.AbstractModel):
     # TODO maybe we need to add lock (todo check)
     @job(default_channel="root.search_engine.recompute_json")
     def recompute_json(self, force_export=False):
-        for work in self._work_by_index():
+        """Compute index record data as JSON."""
+        # `sudo` because the recomputation can be triggered from everywhere
+        # (eg: an update of a product in the stock) and is not granted
+        # that the user triggering it has access to all required records
+        # (eg: se.backend or related records needed to compute index values).
+        # All in all, this is safe because the index data should always
+        # be the same no matter the access rights of the user triggering this.
+        result = []
+        validation_errors = []
+        to_be_checked = []
+        for work in self.sudo()._work_by_index():
             mapper = work.component(usage="se.export.mapper")
-            lang = work.index.lang_id.code
-            for record in work.records.with_context(lang=lang):
-                data = mapper.map_record(record).values()
-                if record.data != data or force_export:
-                    vals = {"data": data}
-                    if record.sync_state in ("done", "new"):
+            for binding in work.records.with_context(
+                **self._recompute_json_work_ctx(work)
+            ):
+                index_record = mapper.map_record(binding).values()
+                # Validate data and track items to check
+                error = self._validate_record(work, index_record)
+                if error:
+                    msg = "{}: {}".format(str(binding), error)
+                    _logger.error(msg)
+                    validation_errors.append(msg)
+                    to_be_checked.append(binding.id)
+                    # skip record
+                    continue
+                if binding.data != index_record or force_export:
+                    vals = {"data": index_record}
+                    if binding.sync_state != "to_update":
                         vals["sync_state"] = "to_update"
-                    record.write(vals)
+                    binding.write(vals)
+        if validation_errors:
+            result.append(_("Validation errors") + "\n" + "\n".join(validation_errors))
+        if to_be_checked:
+            self.browse(to_be_checked).write({"sync_state": "to_be_checked"})
+        return "\n\n".join(result)
+
+    def _recompute_json_work_ctx(self, work):
+        ctx = {}
+        if work.index.lang_id:
+            ctx["lang"] = work.index.lang_id.code
+        return ctx
+
+    def _validate_record(self, work, index_record):
+        return work.collection._validate_record(index_record)
 
     @job(default_channel="root.search_engine")
     @api.multi
