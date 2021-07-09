@@ -44,3 +44,15 @@ class SeBackendSpecAbstract(models.AbstractModel):
         # TODO: user self.name to retrieve creds from server env
         # TODO: username password etc
         return {}  # pragma: no cover
+
+    def _validate_record(self, record):
+        """Validate record for the specific search engine.
+
+        :param record: a dict representing a record to index
+        :return: error message if not validated, None if it's all good.
+        """
+        if not record:
+            return _("The record is empty")
+        if not record.get(self._record_id_key):
+            # Ensure _record_id_key is set when creating/updating records
+            return _("The key `%s` is missing in:\n%s") % (self._record_id_key, record)

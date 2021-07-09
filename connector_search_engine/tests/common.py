@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 # Copyright 2018 Simone Orsi - Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import logging
-from urllib import parse as urlparse
+import urlparse
 
 from odoo import tools
 from odoo.modules.module import get_resource_path
@@ -28,7 +29,7 @@ def load_xml(env, module, filepath):
 class TestSeBackendCaseBase(SavepointComponentCase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestSeBackendCaseBase, cls).setUpClass()
         cls.env = cls.env(
             context=dict(
                 cls.env.context,
