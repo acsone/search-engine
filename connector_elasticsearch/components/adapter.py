@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 # Copyright 2019 ACSONE SA/NV
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
 
-from odoo import exceptions
+from odoo import _
+from odoo.exceptions import UserError
 
 from odoo.addons.component.core import Component
 
@@ -51,23 +53,28 @@ class ElasticsearchAdapter(Component):
             )
         return es
 
-    def index(self, records):
+    def index(self, datas):
         es = self._get_es_client()
-        records_for_bulk = []
-        for record in records:
-            error = self._validate_record(record)
-            if error:
-                raise exceptions.ValidationError(error)
-            action = {
-                "_index": self._index_name,
-                "_id": record.get(self._record_id_key),
-                "_source": record,
-            }
-            records_for_bulk.append(action)
+        dataforbulk = []
+        for data in datas:
+            # Ensure that the _record_id_key is set for creating/updating
+            # the record
+            if not data.get(self._record_id_key):
+                raise UserError(
+                    _("The key %s is missing in the data %s")
+                    % (self._record_id_key, data)
+                )
+            else:
+                action = {
+                    "_index": self._index_name,
+                    "_id": data.get(self._record_id_key),
+                    "_source": data,
+                }
+                dataforbulk.append(action)
 
-        res = elasticsearch.helpers.bulk(es, records_for_bulk)
-        # checks if number of indexed object and object in records are equal
-        return len(records) - res[0] == 0
+        res = elasticsearch.helpers.bulk(es, dataforbulk)
+        # checks if number of indexed object and object in datas are equal
+        return len(datas) - res[0] == 0
 
     def delete(self, binding_ids):
         es = self._get_es_client()
@@ -104,5 +111,5 @@ class ElasticsearchAdapter(Component):
     def each(self):
         es = self._get_es_client()
         res = es.search(index=self._index_name, filter_path=["hits.hits._source"])
-        hits = res["hits"]["hits"]
+        hits = res["hits"]["hits"] if res else []
         return [r["_source"] for r in hits]

@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
 # Copyright 2013 Akretion (http://www.akretion.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
 
 from odoo import _, api, fields, models
+
+from odoo.addons.queue_job.job import job
 
 _logger = logging.getLogger(__name__)
 
@@ -14,30 +17,18 @@ class SeIndex(models.Model):
     _description = "Se Index"
 
     name = fields.Char(compute="_compute_name")
-    custom_tech_name = fields.Char(
-        help="Take control of index technical name. "
-        "The final index name is still computed and contains in any case: "
-        "backend index name prefix and language if given. "
-        "If no custom name is provided, model's normalized name will be used."
-    )
     backend_id = fields.Many2one(
         "se.backend", string="Backend", required=True, ondelete="cascade"
     )
-    lang_id = fields.Many2one("res.lang", string="Lang", required=False)
+    lang_id = fields.Many2one("res.lang", string="Lang", required=True)
     model_id = fields.Many2one(
         "ir.model",
         string="Model",
         required=True,
         domain=lambda self: self._model_id_domain(),
-        ondelete="cascade",
     )
     exporter_id = fields.Many2one("ir.exports", string="Exporter")
     batch_size = fields.Integer(default=5000, help="Batch size for exporting element")
-    config_id = fields.Many2one(
-        comodel_name="se.index.config",
-        string="Config",
-        help="Index configuration record",
-    )
 
     @api.model
     def _model_id_domain(self):
@@ -48,6 +39,11 @@ class SeIndex(models.Model):
             if hasattr(self.env[model], "_se_model"):
                 se_model_names.append(model)
         return [("model", "in", se_model_names)]
+
+    @api.model
+    def _get_model_domain(self):
+        _logger.warn("DEPRECATED: use `_model_id_domain`")
+        return self._model_id_domain()
 
     _sql_constraints = [
         (
@@ -85,43 +81,34 @@ class SeIndex(models.Model):
                 description = _("Batch task for generating %s recompute job") % len(
                     processing
                 )
-                processing.with_delay(description=description).jobify_recompute_json(
+                processing.with_delay(description=description)._jobify_recompute_json(
                     force_export=force_export
                 )
         return True
 
-    @api.depends(
-        "custom_tech_name", "lang_id", "model_id", "backend_id.index_prefix_name"
-    )
+    @api.depends("lang_id", "model_id", "backend_id.index_prefix_name")
     def _compute_name(self):
         for rec in self:
-            rec.name = rec._make_name()
-
-    def _make_name(self):
-        """Compute the final name of the index."""
-        name = ""
-        backend = self.backend_id
-        tech_name = self._make_tech_name()
-        if tech_name:
-            bits = [backend.index_prefix_name, tech_name]
-            if self.lang_id:
-                bits.append(self.lang_id.code)
-            name = "_".join(bits)
-        return name
-
-    def _make_tech_name(self):
-        """Compute the main part of the name of the index."""
-        tech_name = self.custom_tech_name or self.model_id.name or ""
-        return self.backend_id._normalize_tech_name(tech_name)
+            backend = rec.backend_id
+            if rec.lang_id and rec.model_id and backend.index_prefix_name:
+                rec.name = "_".join(
+                    [
+                        backend.index_prefix_name,
+                        backend._normalize_name(rec.model_id.name or ""),
+                        rec.lang_id.code,
+                    ]
+                )
 
     def force_batch_export(self):
         self.ensure_one()
-        self._jobify_batch_export(force_export=True)
+        bindings = self.env[self.model_id.model].search([("index_id", "=", self.id)])
+        bindings.write({"sync_state": "to_update"})
+        self._jobify_batch_export()
 
-    def _jobify_batch_export(self, force_export=False):
+    def _jobify_batch_export(self):
         self.ensure_one()
         description = _("Prepare a batch export of index '%s'") % self.name
-        self.with_delay(description=description).batch_export(force_export)
+        self.with_delay(description=description).batch_export()
 
     @api.model
     def generate_batch_export_per_index(self, domain=None):
@@ -131,15 +118,13 @@ class SeIndex(models.Model):
             record._jobify_batch_export()
         return True
 
-    def _get_domain_for_exporting_binding(self, force_export=False):
-        domain = [("index_id", "=", self.id)]
-        if not force_export:
-            domain.append(("sync_state", "=", "to_update"))
-        return domain
+    def _get_domain_for_exporting_binding(self):
+        return [("index_id", "=", self.id), ("sync_state", "=", "to_update")]
 
-    def batch_export(self, force_export=False):
+    @job(default_channel="root.search_engine.prepare_batch_export")
+    def batch_export(self):
         self.ensure_one()
-        domain = self._get_domain_for_exporting_binding(force_export)
+        domain = self._get_domain_for_exporting_binding()
         binding_obj = self.env[self.model_id.model]
         bindings = binding_obj.with_context(active_test=False).search(domain)
         bindings_count = len(bindings)
@@ -172,8 +157,8 @@ class SeIndex(models.Model):
 
     def _get_settings(self):
         """
-        Override this method is sub modules in order to pass the adequate
-        settings (like Facetting, pagination, advanced settings, etc...)
+            Override this method is sub modules in order to pass the adequate
+            settings (like Facetting, pagination, advanced settings, etc...)
         """
         self.ensure_one()
         return {}
@@ -182,6 +167,7 @@ class SeIndex(models.Model):
     def export_all_settings(self):
         self.search([]).export_settings()
 
+    @api.multi
     def export_settings(self):
         for index in self:
             se_specific_backend = index.backend_id.specific_backend
@@ -190,9 +176,7 @@ class SeIndex(models.Model):
                 exporter.export_settings()
 
     def resynchronize_all_bindings(self):
-        """Force sync between Odoo records and index records.
-
-        This method will iter on all item in the index of the search engine
+        """This method will iter on all item in the index of the search engine
         if the corresponding binding do not exist on odoo it will create a job
         that delete all this obsolete items.
         You should not use this method for day to day job, it only an helper
@@ -203,14 +187,16 @@ class SeIndex(models.Model):
             item_ids = []
             backend = index.backend_id.specific_backend
             adapter = self._get_backend_adapter(backend=backend, index=index)
-            for index_record in adapter.each():
+            for se_binding in adapter.each():
                 binding = self.env[index.model_id.model].search(
-                    [("id", "=", adapter.external_id(index_record))], limit=1
+                    [("id", "=", se_binding[adapter._record_id_key])]
                 )
                 if not binding:
-                    item_ids.append(adapter.external_id(index_record))
+                    item_ids.append(se_binding[adapter._record_id_key])
             index.with_delay().delete_obsolete_item(item_ids)
 
+    @job(default_channel="root.search_engine")
+    @api.multi
     def delete_obsolete_item(self, item_ids):
         adapter = self._get_backend_adapter()
         adapter.delete(item_ids)

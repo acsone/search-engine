@@ -1,4 +1,4 @@
-12.0.?.?.? (unreleased)
+10.0.?.?.? (unreleased)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 * connector_elasticsearch: Makes the config on index required only if the

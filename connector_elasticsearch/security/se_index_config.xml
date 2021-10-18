@@ -4,9 +4,9 @@
 
 <odoo>
 
-    <record model="ir.model.access" id="se_backend_elasticsearch_manage">
-        <field name="name">se.backend.elasticsearch manage</field>
-        <field name="model_id" ref="model_se_backend_elasticsearch"/>
+    <record model="ir.model.access" id="se_index_config_manage">
+        <field name="name">se.index.config manage</field>
+        <field name="model_id" ref="model_se_index_config"/>
         <field name="group_id" ref="connector.group_connector_manager"/>
         <field name="perm_read" eval="1"/>
         <field name="perm_create" eval="1"/>

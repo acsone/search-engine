@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2016 Akretion (http://www.akretion.com)
 # Sébastien BEAU <sebastien.beau@akretion.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
@@ -16,19 +17,16 @@ class SeAdapter(AbstractComponent):
         return True  # pragma: no cover
 
     def index(self, datas):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def delete(self, binding_ids):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def clear(self):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def each(self):
-        raise NotImplementedError()
+        return NotImplemented  # pragma: no cover
 
     def settings(self, force=False):
-        raise NotImplementedError()
-
-    def external_id(self, record):
-        return record[self._record_id_key]
+        return NotImplemented  # pragma: no cover

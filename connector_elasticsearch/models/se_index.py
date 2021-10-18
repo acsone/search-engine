@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2019 ACSONE SA/NV
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
@@ -10,7 +11,9 @@ class SeIndex(models.Model):
     _inherit = "se.index"
 
     config_id = fields.Many2one(
-        help="ElasticSearch index definition (see https://www.elastic.co/"
+        comodel_name="se.index.config",
+        string="Config",
+        help="Elasticseacrh index definition (see https://www.elastic.co/"
         "guide/en/elasticsearch/reference/current/"
         "indices-create-index.html)",
     )
@@ -23,5 +26,5 @@ class SeIndex(models.Model):
                 and not rec.config_id
             ):
                 raise ValidationError(
-                    _("An index definition is required for ElasticSearch")
+                    _("An index definition is rquired for elasticsearch")
                 )
