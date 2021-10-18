@@ -13,7 +13,7 @@ class SeBackend(models.Model):
     _description = "Se Backend"
     _inherit = ["connector.backend", "server.env.mixin"]
 
-    name = fields.Char(required=True)
+    name = fields.Char(required=False)  # WTH: does not work in v10?
     tech_name = fields.Char(
         required=True,
         help="Unique name for technical purposes. " "Eg: server env keys.",
@@ -32,9 +32,9 @@ class SeBackend(models.Model):
         selection="_select_specific_backend",
         readonly=True,
     )
-    _sql_constraints = [
-        ("tech_name_uniq", "unique(tech_name)", "`tech_name` must be uniqdef settingsue")
-    ]
+    # _sql_constraints = [  # also WTH
+    #     ("tech_name_uniq", "unique(tech_name)", "`tech_name` must be uniqdef settingsue")
+    # ]
 
     @property
     def _server_env_fields(self):
