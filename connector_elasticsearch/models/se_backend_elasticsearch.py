@@ -16,9 +16,11 @@ class SeBackendElasticsearch(models.Model):
     _search_engine_name = "elasticsearch"
 
     es_server_host = fields.Char(string="ElasticSearch host")
+    es_user = fields.Char(help="Leave blank if not using http authentication.")
+    es_password = fields.Char(help="Leave blank if not using http authentication.")
 
     @property
     def _server_env_fields(self):
         env_fields = super(SeBackendElasticsearch, self)._server_env_fields
-        env_fields.update({"es_server_host": {}})
+        env_fields.update({"es_server_host": {}, "es_user": {}, "es_password": {}})
         return env_fields

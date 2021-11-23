@@ -14,6 +14,8 @@
                     <group name="se" string="Configuration">
                         <group name="se-main">
                             <field name="es_server_host" placeholder="http://127.0.0.1:9200"/>
+                            <field name="es_user" />
+                            <field name="es_password" password="True" />
                         </group>
                     </group>
                     <group name="index" string="Index">
