@@ -31,7 +31,7 @@ class ElasticsearchAdapter(Component):
 
     @property
     def _index_name(self):
-        return self.work.index.name.lower()
+        return self.work.index and self.work.index.name.lower()
 
     def _get_es_client(self):
         backend = self.backend_record
@@ -42,14 +42,19 @@ class ElasticsearchAdapter(Component):
         else:
             es = elasticsearch.Elasticsearch([backend.es_server_host])
 
+        # TODO: remove, these should not be part of a getter method
         if not es.ping():  # pragma: no cover
             raise ValueError("Connect Exception with elasticsearch")
+        self.check_create_missing_index(es, self._index_name)
 
-        if not es.indices.exists(self._index_name):
-            es.indices.create(
+        return es
+
+    def check_create_missing_index(self, client, index_name):
+        """If given an index name, creates it if it does not already exist."""
+        if index_name and not client.indices.exists(index_name):
+            client.indices.create(
                 index=self._index_name, body=self.work.index.config_id.body
             )
-        return es
 
     def index(self, datas):
         es = self._get_es_client()
