@@ -7,13 +7,15 @@ from vcr_unittest import VCRMixin
 
 from odoo import exceptions
 
+from odoo.tools import mute_logger
+
 from odoo.addons.connector_search_engine.tests.test_all import TestBindingIndexBase
 
 
 class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestConnectorElasticsearch, cls).setUpClass()
         cls.backend_specific = cls.env.ref("connector_elasticsearch.backend_1")
         cls.backend = cls.backend_specific.se_backend_id
         cls.se_index_model = cls.env["se.index"]
@@ -34,19 +36,13 @@ class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
         cls.se_config = cls.env["se.index.config"].create(
             {"name": "my_config", "body": {"mappings": {}}}
         )
-        super().setup_records()
+        super(TestConnectorElasticsearch, cls).setup_records()
 
     @classmethod
     def _prepare_index_values(cls, backend):
-        values = super()._prepare_index_values(backend)
+        values = super(TestConnectorElasticsearch, cls)._prepare_index_values(backend)
         values.update({"config_id": cls.se_config.id})
         return values
-
-    def test_index_adapter_no_objectID(self):
-        self.partner_binding.sync_state = "to_update"
-        with self.assertRaises(exceptions.UserError) as err:
-            self.se_index.batch_export()
-        self.assertIn("The key objectID is missing in", err.exception.name)
 
     def test_index_adapter(self):
         # Set partner to be updated with fake vals in data
@@ -103,16 +99,11 @@ class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
         if self.cassette.dirty:
             # when we record the test we must wait for algolia
             sleep(2)
-        res = self.adapter.delete(["foo", "foo3"])
-        self.assertTrue(res)
+        self.adapter.delete(["foo", "foo3"])
         if self.cassette.dirty:
             # when we record the test we must wait for algolia
             sleep(2)
         res = [x for x in self.adapter.each()]
-<<<<<<< HEAD
-        res.sort(key=lambda d: d["objectID"])
-        self.assertListEqual(res, [{"objectID": "foo2"}])
-=======
         res.sort(key=lambda d: d["id"])
         self.assertListEqual(res, [{"id": "foo2"}])
 
@@ -122,4 +113,3 @@ class TestConnectorElasticsearch(VCRMixin, TestBindingIndexBase):
         Because it does not matter, it is just ignored. No exception.
         """
         self.adapter.delete(["donotexist", "donotexisteither"])
->>>>>>> d46ba01... [REF] Get rid of objectID / id confusion

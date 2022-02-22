@@ -93,7 +93,6 @@ class ElasticsearchAdapter(Component):
             msg = "Trying to delete non-existent documents. Ignored: %s"
             _logger.info(msg, e)
 
-	
     def clear(self):
         es = self._get_es_client()
         res = es.indices.delete(index=self._index_name, ignore=[400, 404])
