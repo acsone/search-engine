@@ -6,7 +6,7 @@ import logging
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-from odoo.addons.queue_job.job import job
+from odoo.addons.queue_job.job import identity_exact, job
 
 _logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class SeBinding(models.AbstractModel):
         description = _("Recompute %s json and check if need update" % self._name)
         # The job creation with tracking is very costly. So disable it.
         for record in self.with_context(tracking_disable=True):
-            record.with_delay(description=description).recompute_json(
+            record.with_delay(description=description, identity_key=identity_exact).recompute_json(
                 force_export=force_export
             )
 
