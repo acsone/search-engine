@@ -3,6 +3,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
+import time
 
 from odoo import exceptions
 
@@ -48,12 +49,28 @@ class ElasticsearchAdapter(Component):
 
         return es
 
+    def _get_current_aliased_index_name(self, client):
+        current_aliased_index_name = None
+        alias = client.indices.get_alias(name=self._index_name, ignore=[400, 404])
+        if "error" not in alias:
+            current_aliased_index_name = alias.keys()[0]
+        return current_aliased_index_name
+
+    def _get_next_aliased_index_name(self, aliased_index_name=None):
+        next_version = 1
+        if aliased_index_name:
+            next_version = int(aliased_index_name.split("-")[-1]) + 1
+        return "%s-%d" % (self._index_name, next_version)
+
     def check_create_missing_index(self, client, index_name):
         """If given an index name, creates it if it does not already exist."""
         if index_name and not client.indices.exists(index_name):
+            # To allow rolling updates, we work with index aliases
+            aliased_index_name = self._get_next_aliased_index_name()
             client.indices.create(
-                index=self._index_name, body=self.work.index.config_id.body
+                index=aliased_index_name, body=self.work.index.config_id.body
             )
+            client.indices.put_alias(index=aliased_index_name, name=self._index_name)
 
     def index(self, records):
         es = self._get_es_client()
@@ -110,3 +127,63 @@ class ElasticsearchAdapter(Component):
         res = es.search(index=self._index_name, filter_path=["hits.hits._source"])
         hits = res["hits"]["hits"] if res else []
         return [r["_source"] for r in hits]
+
+    def reindex(self):
+        """Reindex records according to the current config
+
+        This method is useful to allows a rolling update of index
+        configuration.
+
+        This process is based on the following steps:
+        1. create a new index with the current config
+        2. trigger a reindex into SE from the current index to the new one
+        3. Update the index alias to point to the new index
+        4. Drop the old index.
+        """
+        client = self._get_es_client()
+        current_aliased_index_name = self._get_current_aliased_index_name(client=client)
+        next_aliased_index_name = self._get_next_aliased_index_name(current_aliased_index_name)
+        # create new idx
+        client.indices.create(
+            index=next_aliased_index_name, body=elf.work.index.config_id.body
+        )
+        task_def = client.reindex(
+            {
+                "source": {"index": self._index_name},
+                "dest": {"index": next_aliased_index_name},
+            },
+            request_timeout=9999999,
+            wait_for_completion=False
+        )
+        while True:
+            # TODO should be done into a job but not possible
+            # with component :-( (an other motivation to drop component)
+            time.sleep(5)
+            _logger.info("Waiting for task completion %", task_def)
+            task = client.tasks.get(task_id=task_def["task"], wait_for_completion=False)
+            if task.get('completed'):
+                break
+        if current_aliased_index_name:
+            client.indices.update_aliases(body={
+                "actions": [
+                    {
+                        "remove": {
+                            "index": current_aliased_index_name,
+                            "alias": self._index_name
+                        },
+                    }, {
+                        "add": {
+                            "index": next_aliased_index_name,
+                            "alias": self._index_name
+                        }
+                    }
+                ]
+            })
+            client.indices.delete(index=current_aliased_index_name, ignore=[400, 404])
+        else:
+            # This code will only be triggered the first time the reindex is
+            # called on an index created before the use of index aliases.
+            client.indices.delete(index=idx_name,
+                                  ignore=[400, 404])
+            client.indices.put_alias(index=next_aliased_index_name,
+                                     name=idx_name)
