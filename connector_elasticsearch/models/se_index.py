@@ -28,3 +28,20 @@ class SeIndex(models.Model):
                 raise ValidationError(
                     _("An index definition is rquired for elasticsearch")
                 )
+
+    def reindex(self):
+        """Reindex records according to the current config
+
+        This method is useful to allows a rolling update of index
+        configuration.
+
+        This process is based on the following steps:
+        1. create a new index with the current config
+        2. trigger a reindex into SE from the current index to the new one
+        3. Update the index alias to point to the new index
+        4. Drop the old index.
+        """
+        self.ensure_one()
+        adapter = self._get_backend_adapter()
+        adapter.reindex()
+        return True
