@@ -159,7 +159,7 @@ class ElasticsearchAdapter(Component):
             # TODO should be done into a job but not possible
             # with component :-( (an other motivation to drop component)
             time.sleep(5)
-            _logger.info("Waiting for task completion %", task_def)
+            _logger.info("Waiting for task completion %s", task_def)
             task = client.tasks.get(task_id=task_def["task"], wait_for_completion=False)
             if task.get('completed'):
                 break
