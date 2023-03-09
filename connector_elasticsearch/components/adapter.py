@@ -3,7 +3,8 @@
 
 import logging
 
-from odoo import exceptions
+from odoo import _, exceptions
+from odoo.exceptions import UserError
 
 from odoo.addons.component.core import Component
 
@@ -33,20 +34,35 @@ class ElasticsearchAdapter(Component):
 
     @property
     def _es_connection_class(self):
-        return elasticsearch.RequestsHttpConnection
+        return elasticsearch.ReqquestsHttpConnection
 
     def _get_es_client(self):
         backend = self.backend_record
-        api_key = (
-            (backend.api_key_id, backend.api_key)
-            if backend.api_key_id and backend.api_key
-            else None
-        )
-        return elasticsearch.Elasticsearch(
-            [backend.es_server_host],
-            connection_class=self._es_connection_class,
-            api_key=api_key,
-        )
+
+        if backend.is_http_authentification:
+            if backend.es_user or backend.es_password:
+                auth = (backend.es_user, backend.es_password)
+                es = elasticsearch.Elasticsearch(
+                    [backend.es_server_host], http_auth=auth
+                )
+            else:
+                es = elasticsearch.Elasticsearch([backend.es_server_host])
+
+            if not es.ping():  # pragma: no cover
+                raise UserError(_("Connect Exception with elasticsearch"))
+
+            return es
+        else:
+            api_key = (
+                (backend.api_key_id, backend.api_key)
+                if backend.api_key_id and backend.api_key
+                else None
+            )
+            return elasticsearch.Elasticsearch(
+                [backend.es_server_host],
+                connection_class=self._es_connection_class,
+                api_key=api_key,
+            )
 
     def index(self, records):
         es = self._get_es_client()
