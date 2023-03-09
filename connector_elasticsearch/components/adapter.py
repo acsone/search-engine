@@ -31,22 +31,23 @@ class ElasticsearchAdapter(Component):
     def _index_name(self):
         return self.work.index.name.lower()
 
-    @property
-    def _es_connection_class(self):
-        return elasticsearch.RequestsHttpConnection
-
     def _get_es_client(self):
         backend = self.backend_record
-        api_key = (
-            (backend.api_key_id, backend.api_key)
-            if backend.api_key_id and backend.api_key
-            else None
-        )
-        return elasticsearch.Elasticsearch(
-            [backend.es_server_host],
-            connection_class=self._es_connection_class,
-            api_key=api_key,
-        )
+
+        if backend.es_user or backend.es_password:
+            auth = (backend.es_user, backend.es_password)
+            es = elasticsearch.Elasticsearch([backend.es_server_host], http_auth=auth)
+        else:
+            es = elasticsearch.Elasticsearch([backend.es_server_host])
+
+        if not es.ping():  # pragma: no cover
+            raise ValueError("Connect Exception with elasticsearch")
+
+        # if not es.indices.exists(self._index_name):
+        #     es.indices.create(
+        #         index=self._index_name, body=self.work.index.config_id.body
+        #     )
+        return es
 
     def index(self, records):
         es = self._get_es_client()
