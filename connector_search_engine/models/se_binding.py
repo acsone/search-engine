@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterator
 from typing_extensions import Self
 
 from odoo import _, api, fields, models, tools
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 from odoo.addons.queue_job.job import identity_exact
 
@@ -166,7 +166,7 @@ class SeBinding(models.Model):
                 with self.env.cr.savepoint():
                     record.data = index.model_serializer.serialize(record.record)
                     record.date_recomputed = fields.Datetime.now()
-            except Exception as e:
+            except UserError as e:
                 record.state = "recompute_error"
                 record.error = str(e)
                 continue
