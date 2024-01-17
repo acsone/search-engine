@@ -10,6 +10,8 @@ import sys
 
 from odoo import _, api, fields, models
 
+from odoo.addons.queue_job.delay import group
+
 _logger = logging.getLogger(__name__)
 CONFIG_KEY = "connector_search_engine.batch_size"
 
@@ -133,7 +135,29 @@ class SeBinding(models.AbstractModel):
                 model_name=self._name,
             )
 
-    def jobify_recompute_json(self, force_export=False, batch_size=False):
+    def jobify_recompute_json(self, force_export=False, batch_size=500, delay=True):
+        """
+        Create a queue_job to recompute json.
+
+        Parameters
+        ----------
+        force_export : bool
+            Determine if it should force the export after the recompute (default False)
+        batch_size : int
+            Number of records per job
+        delay : bool
+            Determine if it should delay the job directly (default True).
+            Useful if we want to only have the Delayable object and
+            group/chain in a different way.
+            The default is True for backward compatibility.
+            If you set it to False, you have to call the .delay() manually
+            on the returned Delayable list (cfr queue_job documentation).
+
+        Returns
+        -------
+        DelayableGroup
+            DelayableGroup object with Delayable objects created
+        """
         config_parameter = self.env["ir.config_parameter"].sudo()
         raw_batch_size = config_parameter.get_param(CONFIG_KEY, False)
         if (
@@ -146,12 +170,20 @@ class SeBinding(models.AbstractModel):
         batch_size = batch_size or 500  # Previous default value
         # The job creation with tracking is very costly. So disable it.
         bindings = self.with_context(tracking_disable=True)
+        delayables = []
         while bindings:
             processing, bindings = self._get_binding_to_process(bindings, batch_size)
             description = self._jobify_get_job_description(processing)
-            processing.with_delay(description=description).recompute_json(
+            delayable = processing.delayable(description=description).recompute_json(
                 force_export=force_export
             )
+            delayables.append(delayable)
+        group_delayable = group(*(d for d in delayables))
+        if delayables and delay:
+            group_delayable.delay()
+            # Return an empty list as there is nothing else to delay.
+            return group()
+        return group_delayable
 
     def recompute_json(self, force_export=False):
         try:
