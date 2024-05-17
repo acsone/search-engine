@@ -60,6 +60,7 @@ class SeIndexableRecord(models.AbstractModel):
         string="Seacrh Engine Bindings",
         comodel_name="se.binding",
         compute="_compute_binding_ids",
+        compute_sudo=True,
     )
     count_se_binding_total = fields.Integer(compute="_compute_count_binding")
     count_se_binding_done = fields.Integer(compute="_compute_count_binding")
@@ -170,7 +171,7 @@ class SeIndexableRecord(models.AbstractModel):
         bindings.write({"state": "to_recompute"})
 
     def unlink(self):
-        bindings = self._get_bindings()
+        bindings = self.sudo()._get_bindings()
         bindings.write(
             {
                 "state": "to_delete",
@@ -180,7 +181,7 @@ class SeIndexableRecord(models.AbstractModel):
         return super().unlink()
 
     def write(self, vals):
-        res = super().write(vals)
+        res = super().sudo().write(vals)
         if "active" in vals:
             bindings = self.sudo()._get_bindings()
             # if the record is archived then unarchived while the binding
