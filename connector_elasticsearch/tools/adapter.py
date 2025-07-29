@@ -5,6 +5,8 @@ import logging
 import time
 from typing import Any, Iterator
 
+import pkg_resources
+
 from odoo import _
 from odoo.exceptions import UserError
 
@@ -51,6 +53,11 @@ class ElasticSearchAdapter(SearchEngineAdapter):
 
     def _get_es_client(self):
         backend = self.backend_record
+        es_version = pkg_resources.parse_version(
+            elasticsearch.__version__
+            if hasattr(elasticsearch, "__version__")
+            else elasticsearch.VERSION
+        )
         if backend.auth_type == "api_key":
             api_key = (
                 (backend.api_key_id, backend.api_key)
@@ -67,14 +74,17 @@ class ElasticSearchAdapter(SearchEngineAdapter):
             )
         if backend.auth_type == "http":
             auth = (backend.es_user, backend.es_password)
-            return elasticsearch.Elasticsearch(
-                [backend.es_server_host],
-                http_auth=auth,
-                use_ssl=backend.ssl,
-                timeout=max(backend.es_timeout, 1),
-                retry_on_timeout=backend.es_retry_on_timeout,
-                max_retries=max(0, backend.es_max_retries),
-            )
+            es_kwargs = {
+                "hosts": [backend.es_server_host],
+                "http_auth": auth,
+                "timeout": max(backend.es_timeout, 1),
+                "retry_on_timeout": backend.es_retry_on_timeout,
+                "max_retries": max(0, backend.es_max_retries),
+            }
+            # Pass use_ssl only if elasticsearch < 8.0.0
+            if es_version < pkg_resources.parse_version("8.0.0"):
+                es_kwargs["use_ssl"] = backend.ssl
+            return elasticsearch.Elasticsearch(**es_kwargs)
 
     def test_connection(self):
         es = self._es_client
@@ -156,7 +166,7 @@ class ElasticSearchAdapter(SearchEngineAdapter):
 
     def settings(self) -> None:
         es = self._es_client
-        if not es.indices.exists(self._index_name):
+        if not es.indices.exists(index=self._index_name):
             client = self._es_client
             # To allow rolling updates, we work with index aliases
             aliased_index_name = self._get_next_aliased_index_name()
