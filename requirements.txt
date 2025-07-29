@@ -1,5 +1,6 @@
 # generated from manifests external_dependencies
-elasticsearch>=7.0.0,<=7.13.4
+elastic-transport
+elasticsearch>=7.0.0,<9.0.0
 pydantic
 requests
 typing-extensions
