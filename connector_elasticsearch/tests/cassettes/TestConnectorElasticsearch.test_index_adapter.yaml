@@ -24,6 +24,8 @@ interactions:
       - '252'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK

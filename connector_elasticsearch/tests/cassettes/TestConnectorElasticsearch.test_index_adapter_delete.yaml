@@ -18,6 +18,8 @@ interactions:
       - '106'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK
@@ -42,6 +44,8 @@ interactions:
       - '21'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK
@@ -64,6 +68,8 @@ interactions:
       - '569'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 404
       message: Not Found
@@ -88,6 +94,8 @@ interactions:
       - '101'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK
@@ -112,6 +120,8 @@ interactions:
       - '21'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK
@@ -148,6 +158,8 @@ interactions:
       - '686'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK
@@ -176,6 +188,8 @@ interactions:
       - '471'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK
@@ -200,6 +214,8 @@ interactions:
       - '45'
       content-type:
       - application/json; charset=UTF-8
+      x-elastic-product:
+        - Elasticsearch
     status:
       code: 200
       message: OK
