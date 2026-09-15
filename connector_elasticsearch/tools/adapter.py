@@ -73,7 +73,10 @@ class ElasticSearchAdapter(SearchEngineAdapter):
             es_options["api_key"] = api_key
         if backend.auth_type == "http":
             auth = (backend.es_user, backend.es_password)
-            es_params["http_auth"] = auth
+            if elasticsearch.__version__[0] < 8:
+                es_params["http_auth"] = auth
+            else:
+                es_params["basic_auth"] = auth
         client = elasticsearch.Elasticsearch(**es_params)
         client.options(**es_options)
         return client

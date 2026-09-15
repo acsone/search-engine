@@ -17,8 +17,8 @@
     # TODO: Get latest improvements from elasticsearch library
     "external_dependencies": {
         "python": [
-            "elasticsearch>=8.0.0,<9.0.0",
-            "elastic-transport>=8.15.1,<9.0.0",
+            "elasticsearch>=8.0.0,<=9.3.0",
+            "elastic-transport>=8.15.1",
             "requests",
         ]
     },
